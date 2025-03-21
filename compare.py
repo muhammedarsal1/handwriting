@@ -49,11 +49,10 @@ def compare_handwriting(img1, img2):
         similarity_score = 1.0 - diff_normalized
         similarity_percent = round(similarity_score * 100, 2)
 
-        # Log pixel difference details
         logger.info(f"Pixel diff: {non_zero_count}/{total_pixels} non-zero, Diff ratio: {diff_normalized:.4f}, Similarity: {similarity_percent}%")
-
-        # If very close (e.g., <1% difference), treat as identical
-        if diff_normalized < 0.01:  # Less than 1% of pixels differ
+        
+        # Threshold for near-identical images
+        if diff_normalized < 0.01:  # Less than 1% difference
             logger.info("Images are nearly identical (diff < 1%)")
             return 100.0
 
