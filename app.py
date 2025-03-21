@@ -45,12 +45,16 @@ def save_image(image, folder, prefix="image"):
 # Main Handwriting Section
 st.subheader("1. Main Handwriting Sample")
 if input_method == "📸 Camera":
-    main_image = st.camera_input("Capture Main Handwriting", key="main_camera")
-    if main_image:
-        main_img = Image.open(main_image)
-        st.session_state["main_image_path"] = save_image(main_img, MAIN_DIR, "main")
-        st.success("✅ Main handwriting captured successfully!")
-        logger.info(f"Main handwriting captured: {os.path.basename(st.session_state['main_image_path'])}")
+    if not st.session_state["main_image_path"]:  # Only show camera if main image isn’t captured yet
+        st.markdown("*Use your device's back camera for best results.*")
+        main_image = st.camera_input("Capture Main Handwriting (Back Camera)", key="main_camera")
+        if main_image:
+            main_img = Image.open(main_image)
+            st.session_state["main_image_path"] = save_image(main_img, MAIN_DIR, "main")
+            st.success("✅ Main handwriting captured successfully!")
+            logger.info(f"Main handwriting captured: {os.path.basename(st.session_state['main_image_path'])}")
+    else:
+        st.info("Main sample captured. Proceed to comparison samples below.")
 else:
     main_upload = st.file_uploader("Upload Main Handwriting", type=["png", "jpg", "jpeg"], key="main_upload")
     if main_upload:
@@ -63,30 +67,34 @@ else:
 if st.session_state["main_image_path"]:
     st.image(st.session_state["main_image_path"], caption="Main Handwriting Sample", use_column_width=True)
 
-# Comparison Handwriting Section
+# Comparison Handwriting Section (Enabled only after main sample)
 st.subheader("2. Comparison Handwriting Samples")
-if input_method == "📸 Camera":
-    comp_image = st.camera_input("Capture Comparison Handwriting", key="comp_camera")
-    if comp_image:
-        comp_img = Image.open(comp_image)
-        comp_path = save_image(comp_img, COMP_DIR, "comp")
-        st.session_state["comp_image_paths"].append(comp_path)
-        st.success("✅ Comparison handwriting captured successfully!")
-        logger.info(f"Comparison handwriting captured: {os.path.basename(comp_path)}")
-else:
-    comp_uploads = st.file_uploader(
-        "Upload Comparison Handwriting (multiple allowed)", 
-        type=["png", "jpg", "jpeg"], 
-        accept_multiple_files=True, 
-        key="comp_upload"
-    )
-    if comp_uploads:
-        for comp_upload in comp_uploads:
-            comp_img = Image.open(comp_upload)
+if st.session_state["main_image_path"]:  # Only show if main image exists
+    if input_method == "📸 Camera":
+        st.markdown("*Use your device's back camera for best results.*")
+        comp_image = st.camera_input("Capture Comparison Handwriting (Back Camera)", key="comp_camera")
+        if comp_image:
+            comp_img = Image.open(comp_image)
             comp_path = save_image(comp_img, COMP_DIR, "comp")
             st.session_state["comp_image_paths"].append(comp_path)
-            logger.info(f"Comparison handwriting uploaded: {os.path.basename(comp_path)}")
-        st.success(f"✅ {len(comp_uploads)} comparison handwriting sample(s) uploaded successfully!")
+            st.success("✅ Comparison handwriting captured successfully!")
+            logger.info(f"Comparison handwriting captured: {os.path.basename(comp_path)}")
+    else:
+        comp_uploads = st.file_uploader(
+            "Upload Comparison Handwriting (multiple allowed)", 
+            type=["png", "jpg", "jpeg"], 
+            accept_multiple_files=True, 
+            key="comp_upload"
+        )
+        if comp_uploads:
+            for comp_upload in comp_uploads:
+                comp_img = Image.open(comp_upload)
+                comp_path = save_image(comp_img, COMP_DIR, "comp")
+                st.session_state["comp_image_paths"].append(comp_path)
+                logger.info(f"Comparison handwriting uploaded: {os.path.basename(comp_path)}")
+            st.success(f"✅ {len(comp_uploads)} comparison handwriting sample(s) uploaded successfully!")
+else:
+    st.warning("⚠️ Please capture or upload the main handwriting sample first!")
 
 # Display Comparison Images
 if st.session_state["comp_image_paths"]:
@@ -129,10 +137,3 @@ if st.button("🔄 Clear All", use_container_width=True):
     st.success("🗑️ All images and data cleared!")
     logger.info("All data cleared by user")
     st.rerun()
-
-# Debug: Show Stored Files (optional, remove if not needed)
-if st.button("📂 Show Stored Files"):
-    main_files = os.listdir(MAIN_DIR)
-    comp_files = os.listdir(COMP_DIR)
-    st.write("Main Folder Contents:", main_files)
-    st.write("Comparisons Folder Contents:", comp_files)
