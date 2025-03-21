@@ -33,10 +33,12 @@ if "main_image_path" not in st.session_state:
     st.session_state["main_image_path"] = None
 if "comp_image_paths" not in st.session_state:
     st.session_state["comp_image_paths"] = []
+if "capture_more" not in st.session_state:
+    st.session_state["capture_more"] = True  # Allow more captures by default
 
 # Function to save image with unique timestamp
 def save_image(image, folder, prefix="image"):
-    timestamp = int(time.time() * 1000)  # Unique millisecond timestamp
+    timestamp = int(time.time() * 1000)
     filename = f"{prefix}_{timestamp}.png"
     path = os.path.join(folder, filename)
     image.save(path)
@@ -45,7 +47,7 @@ def save_image(image, folder, prefix="image"):
 # Main Handwriting Section
 st.subheader("1. Main Handwriting Sample")
 if input_method == "📸 Camera":
-    if not st.session_state["main_image_path"]:  # Only show camera if main image isn’t captured yet
+    if not st.session_state["main_image_path"]:
         st.markdown("*Use your device's back camera for best results.*")
         main_image = st.camera_input("Capture Main Handwriting (Back Camera)", key="main_camera")
         if main_image:
@@ -67,18 +69,26 @@ else:
 if st.session_state["main_image_path"]:
     st.image(st.session_state["main_image_path"], caption="Main Handwriting Sample", use_container_width=True)
 
-# Comparison Handwriting Section (Enabled only after main sample)
+# Comparison Handwriting Section
 st.subheader("2. Comparison Handwriting Samples")
-if st.session_state["main_image_path"]:  # Only show if main image exists
+if st.session_state["main_image_path"]:
     if input_method == "📸 Camera":
         st.markdown("*Use your device's back camera for best results.*")
-        comp_image = st.camera_input("Capture Comparison Handwriting (Back Camera)", key="comp_camera")
-        if comp_image:
-            comp_img = Image.open(comp_image)
-            comp_path = save_image(comp_img, COMP_DIR, "comp")
-            st.session_state["comp_image_paths"].append(comp_path)
-            st.success("✅ Comparison handwriting captured successfully!")
-            logger.info(f"Comparison handwriting captured: {os.path.basename(comp_path)}")
+        if st.session_state["capture_more"]:
+            comp_image = st.camera_input("Capture Comparison Handwriting (Back Camera)", key=f"comp_camera_{len(st.session_state['comp_image_paths'])}")
+            if comp_image:
+                comp_img = Image.open(comp_image)
+                comp_path = save_image(comp_img, COMP_DIR, "comp")
+                st.session_state["comp_image_paths"].append(comp_path)
+                st.success(f"✅ Comparison handwriting {len(st.session_state['comp_image_paths'])} captured successfully!")
+                logger.info(f"Comparison handwriting captured: {os.path.basename(comp_path)}")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Capture Another Sample"):
+                st.session_state["capture_more"] = True
+        with col2:
+            if st.button("Finish Capturing"):
+                st.session_state["capture_more"] = False
     else:
         comp_uploads = st.file_uploader(
             "Upload Comparison Handwriting (multiple allowed)", 
@@ -99,10 +109,10 @@ else:
 # Display Comparison Images
 if st.session_state["comp_image_paths"]:
     st.markdown("### Comparison Samples")
-    cols = st.columns(3)  # 3 images per row
+    cols = st.columns(3)
     for i, comp_path in enumerate(st.session_state["comp_image_paths"]):
         with cols[i % 3]:
-            st.image(comp_path, caption=os.path.basename(comp_path), width=150)  # Width for thumbnails
+            st.image(comp_path, caption=os.path.basename(comp_path), width=150)
 
 # Compare Button
 if st.button("🔍 Compare", use_container_width=True):
@@ -131,6 +141,7 @@ if st.button("🔍 Compare", use_container_width=True):
 if st.button("🔄 Clear All", use_container_width=True):
     st.session_state["main_image_path"] = None
     st.session_state["comp_image_paths"] = []
+    st.session_state["capture_more"] = True
     shutil.rmtree(DATA_DIR, ignore_errors=True)
     os.makedirs(MAIN_DIR, exist_ok=True)
     os.makedirs(COMP_DIR, exist_ok=True)

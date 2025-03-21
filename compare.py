@@ -1,16 +1,13 @@
 import cv2
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
 from PIL import Image
 
 def compare_handwriting(img1, img2):
-    """Compare two handwriting images and return similarity percentage."""
+    """Compare two handwriting images using ORB keypoints and return similarity percentage."""
     try:
-        # Convert PIL images to numpy arrays
+        # Convert PIL images to numpy arrays and grayscale
         img1_array = np.array(img1)
         img2_array = np.array(img2)
-
-        # If images are RGBA or RGB, convert to grayscale
         if len(img1_array.shape) == 3:
             img1_gray = cv2.cvtColor(img1_array, cv2.COLOR_RGB2GRAY)
         else:
@@ -20,21 +17,38 @@ def compare_handwriting(img1, img2):
         else:
             img2_gray = img2_array
 
-        # Ensure images are the same size without excessive interpolation
+        # Resize img2 to match img1 dimensions
         if img1_gray.shape != img2_gray.shape:
-            # Resize img2 to match img1 dimensions using INTER_AREA for better quality
-            img2_gray = cv2.resize(img2_gray, (img1_gray.shape[1], img1_gray.shape[0]), interpolation=cv2.INTER_AREA)
+            img2_gray = cv2.resize(img2_gray, (img1_gray.shape[1], img1_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
 
-        # Calculate SSIM with adjusted parameters for better sensitivity
-        similarity_score = ssim(img1_gray, img2_gray, data_range=255, gaussian_weights=True, sigma=1.5)
-
-        # Convert to percentage and ensure identical images get near 100%
-        similarity_percent = round(similarity_score * 100, 2)
+        # Initialize ORB detector
+        orb = cv2.ORB_create(nfeatures=500)
         
-        # Debugging: If images are identical (byte-for-byte), force 100%
+        # Detect keypoints and descriptors
+        kp1, des1 = orb.detectAndCompute(img1_gray, None)
+        kp2, des2 = orb.detectAndCompute(img2_gray, None)
+
+        # If no keypoints detected, return low similarity
+        if des1 is None or des2 is None:
+            return 10.0
+
+        # Match descriptors using BFMatcher
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+        matches = bf.match(des1, des2)
+        
+        # Sort matches by distance (lower is better)
+        matches = sorted(matches, key=lambda x: x.distance)
+        
+        # Calculate similarity based on number of good matches
+        if len(matches) == 0:
+            return 10.0
+        good_matches = [m for m in matches if m.distance < 50]  # Threshold for "good" matches
+        similarity_percent = min(100.0, len(good_matches) / min(len(kp1), len(kp2)) * 100 * 2)  # Scale to 0-100
+        
+        # Force 100% for identical images
         if np.array_equal(img1_gray, img2_gray):
             similarity_percent = 100.0
 
-        return similarity_percent
+        return round(similarity_percent, 2)
     except Exception as e:
         raise Exception(f"Comparison failed: {str(e)}")
