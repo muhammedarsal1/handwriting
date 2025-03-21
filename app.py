@@ -65,7 +65,7 @@ else:
 
 # Display Main Image
 if st.session_state["main_image_path"]:
-    st.image(st.session_state["main_image_path"], caption="Main Handwriting Sample", use_column_width=True)
+    st.image(st.session_state["main_image_path"], caption="Main Handwriting Sample", use_container_width=True)
 
 # Comparison Handwriting Section (Enabled only after main sample)
 st.subheader("2. Comparison Handwriting Samples")
@@ -102,7 +102,7 @@ if st.session_state["comp_image_paths"]:
     cols = st.columns(3)  # 3 images per row
     for i, comp_path in enumerate(st.session_state["comp_image_paths"]):
         with cols[i % 3]:
-            st.image(comp_path, caption=os.path.basename(comp_path), width=150)
+            st.image(comp_path, caption=os.path.basename(comp_path), width=150)  # Width for thumbnails
 
 # Compare Button
 if st.button("🔍 Compare", use_container_width=True):
@@ -116,11 +116,11 @@ if st.button("🔍 Compare", use_container_width=True):
         main_img = Image.open(st.session_state["main_image_path"])
         st.markdown("### Similarity Scores")
         with st.spinner("Comparing handwriting..."):
-            for comp_path in st.session_state["comp_image_paths"]:
+            for i, comp_path in enumerate(st.session_state["comp_image_paths"]):
                 comp_img = Image.open(comp_path)
                 try:
                     similarity = compare_handwriting(main_img, comp_img)
-                    st.write(f"- **{os.path.basename(comp_path)}**: {similarity}% similar")
+                    st.write(f"- **{os.path.basename(comp_path)} (Sample {i+1})**: {similarity}% similar")
                     logger.info(f"Compared {os.path.basename(comp_path)} with main: {similarity}%")
                 except Exception as e:
                     st.error(f"Error comparing {os.path.basename(comp_path)}: {str(e)}")
